@@ -16,7 +16,9 @@ export default function Home() {
           </div>
           <div className="flex items-center space-x-4">
             <Button variant="ghost" className="hidden sm:inline-flex">Sobre</Button>
+            <Link href="/pricing">
             <Button variant="ghost" className="hidden sm:inline-flex">Preços</Button>
+            </Link>
             <Button variant="ghost" className="hidden sm:inline-flex">Contato</Button>
             <Link href="/auth/login">
               <Button>Entrar</Button>
