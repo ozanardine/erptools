@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { queryUserSchema } from '@/lib/schema-helper';
+import { getSupabaseClient } from '@/lib/schema-helper';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '../products/data-table';
 import { columns } from './columns';
@@ -13,8 +13,15 @@ export const metadata: Metadata = {
 
 export default async function CategoriesPage() {
   try {
+    const supabase = getSupabaseClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) redirect('/auth/login');
+
+    const schema = `client_${session.user.id.replace(/-/g, '_')}`;
+
     // Buscar categorias do schema do usuário
-    const { data: categories, error } = await queryUserSchema('categories')
+    const { data: categories, error } = await supabase
+      .from(`${schema}.categories`)
       .select('*')
       .order('name');
 

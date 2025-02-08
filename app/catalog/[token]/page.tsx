@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/schema-helper';
 import { formatPrice } from '@/lib/utils';
 
 interface CatalogPageProps {
@@ -15,6 +15,8 @@ export const metadata: Metadata = {
 };
 
 async function validateAccess(token: string) {
+  const supabase = getSupabaseClient();
+  
   // Buscar informações do token
   const { data: tokenData } = await supabase
     .from('catalog_share_tokens')
@@ -42,9 +44,12 @@ export default async function CatalogPage({ params }: CatalogPageProps) {
   const userId = await validateAccess(params.token);
   if (!userId) notFound();
 
+  const supabase = getSupabaseClient();
+  const schema = `client_${userId.replace(/-/g, '_')}`;
+
   // Buscar produtos do usuário
   const { data: products } = await supabase
-    .from('products')
+    .from(`${schema}.products`)
     .select(`
       *,
       category:categories(name),
