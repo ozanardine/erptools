@@ -56,8 +56,6 @@ export async function POST(req: Request) {
     let totalFailed = 0;
     let hasMore = true;
 
-    const products = queryUserSchema('products');
-
     while (hasMore) {
       const data = await fetchTinyProducts(integration.access_token, page);
       
@@ -72,20 +70,40 @@ export async function POST(req: Request) {
         try {
           const product = item.produto;
           
-          // Atualizar ou criar produto
-          await products.upsert({
-            erp_id: product.id,
-            title: product.nome,
-            description: product.descricao,
-            sale_price: Number(product.preco),
-            promotional_price: product.preco_promocional ? Number(product.preco_promocional) : null,
-            active: product.situacao === 'A',
-            source: 'erp',
-            last_sync: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'erp_id'
-          });
+          // Buscar produto existente
+          const { data: existingProduct } = await (await queryUserSchema('products'))
+            .select('id')
+            .eq('erp_id', product.id)
+            .single();
+
+          if (existingProduct) {
+            // Atualizar produto existente
+            await (await queryUserSchema('products'))
+              .update({
+                title: product.nome,
+                description: product.descricao,
+                sale_price: Number(product.preco),
+                promotional_price: product.preco_promocional ? Number(product.preco_promocional) : null,
+                active: product.situacao === 'A',
+                source: 'erp',
+                last_sync: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', existingProduct.id);
+          } else {
+            // Criar novo produto
+            await (await queryUserSchema('products'))
+              .insert({
+                erp_id: product.id,
+                title: product.nome,
+                description: product.descricao,
+                sale_price: Number(product.preco),
+                promotional_price: product.preco_promocional ? Number(product.preco_promocional) : null,
+                active: product.situacao === 'A',
+                source: 'erp',
+                last_sync: new Date().toISOString(),
+              });
+          }
 
           totalProcessed++;
         } catch (error) {
