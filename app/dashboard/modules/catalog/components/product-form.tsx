@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { queryUserSchema } from '@/lib/schema-helper';
+import { getSupabaseClient } from '@/lib/schema-helper';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -48,7 +48,7 @@ interface Category {
 
 interface ProductFormProps {
   categories: Category[];
-  initialData?: ProductFormValues;
+  initialData?: ProductFormValues & { id?: string };
   isEditing?: boolean;
 }
 
@@ -72,16 +72,26 @@ export function ProductForm({ categories, initialData, isEditing }: ProductFormP
   async function onSubmit(data: ProductFormValues) {
     try {
       setLoading(true);
+      const supabase = getSupabaseClient();
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Não autenticado');
+
+      const schema = `client_${session.user.id.replace(/-/g, '_')}`;
       
       if (isEditing && initialData?.id) {
         // Atualizar produto existente
-        const response = await fetch(`/api/catalog/products/${initialData.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
+        const { error } = await supabase
+          .from(`${schema}.products`)
+          .update({
+            ...data,
+            sale_price: Number(data.sale_price),
+            promotional_price: data.promotional_price ? Number(data.promotional_price) : null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', initialData.id);
 
-        if (!response.ok) throw new Error('Erro ao atualizar produto');
+        if (error) throw error;
 
         toast({
           title: 'Produto atualizado com sucesso!',
@@ -89,12 +99,13 @@ export function ProductForm({ categories, initialData, isEditing }: ProductFormP
         });
       } else {
         // Criar novo produto
-        const products = queryUserSchema('products');
-        const { error } = await products.insert({
-          ...data,
-          sale_price: Number(data.sale_price),
-          promotional_price: data.promotional_price ? Number(data.promotional_price) : null,
-        });
+        const { error } = await supabase
+          .from(`${schema}.products`)
+          .insert({
+            ...data,
+            sale_price: Number(data.sale_price),
+            promotional_price: data.promotional_price ? Number(data.promotional_price) : null,
+          });
 
         if (error) throw error;
 
