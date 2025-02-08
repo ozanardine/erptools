@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { formatPrice } from '@/lib/utils';
 
 interface CatalogPageProps {
   params: {
@@ -41,14 +42,15 @@ export default async function CatalogPage({ params }: CatalogPageProps) {
   const userId = await validateAccess(params.token);
   if (!userId) notFound();
 
+  const schemaName = `client_${userId.replace(/-/g, '_')}`;
+
   // Buscar produtos do usuário
   const { data: products } = await supabase
-    .schema(`client_${userId.replace(/-/g, '_')}`)
-    .from('products')
+    .from(`${schemaName}.products`)
     .select(`
       *,
-      category:categories(name),
-      images:product_images(url, order_index)
+      category:${schemaName}.categories(name),
+      images:${schemaName}.product_images(url, order_index)
     `)
     .eq('active', true)
     .order('created_at', { ascending: false });
@@ -89,24 +91,15 @@ export default async function CatalogPage({ params }: CatalogPageProps) {
                   {product.promotional_price ? (
                     <>
                       <p className="text-sm text-muted-foreground line-through">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
-                        }).format(product.sale_price)}
+                        {formatPrice(product.sale_price)}
                       </p>
                       <p className="text-lg font-bold text-primary">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
-                        }).format(product.promotional_price)}
+                        {formatPrice(product.promotional_price)}
                       </p>
                     </>
                   ) : (
                     <p className="text-lg font-bold text-primary">
-                      {new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      }).format(product.sale_price)}
+                      {formatPrice(product.sale_price)}
                     </p>
                   )}
                 </div>
