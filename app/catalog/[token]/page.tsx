@@ -42,15 +42,13 @@ export default async function CatalogPage({ params }: CatalogPageProps) {
   const userId = await validateAccess(params.token);
   if (!userId) notFound();
 
-  const schemaName = `client_${userId.replace(/-/g, '_')}`;
-
   // Buscar produtos do usuário
   const { data: products } = await supabase
-    .from(`${schemaName}.products`)
+    .from('products')
     .select(`
       *,
-      category:${schemaName}.categories(name),
-      images:${schemaName}.product_images(url, order_index)
+      category:categories(name),
+      images:product_images(url, order_index)
     `)
     .eq('active', true)
     .order('created_at', { ascending: false });
