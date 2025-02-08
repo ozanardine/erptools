@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { queryUserSchema } from '@/lib/schema-helper';
+import { getSupabaseClient } from '@/lib/schema-helper';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -28,7 +28,7 @@ const categorySchema = z.object({
 type CategoryFormValues = z.infer<typeof categorySchema>;
 
 interface CategoryFormProps {
-  initialData?: CategoryFormValues;
+  initialData?: CategoryFormValues & { id: string };
   isEditing?: boolean;
 }
 
@@ -49,16 +49,21 @@ export function CategoryForm({ initialData, isEditing }: CategoryFormProps) {
   async function onSubmit(data: CategoryFormValues) {
     try {
       setLoading(true);
+      const supabase = getSupabaseClient();
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Não autenticado');
+
+      const schema = `client_${session.user.id.replace(/-/g, '_')}`;
 
       if (isEditing && initialData?.id) {
         // Atualizar categoria existente
-        const response = await fetch(`/api/catalog/categories/${initialData.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
+        const { error } = await supabase
+          .from(`${schema}.categories`)
+          .update(data)
+          .eq('id', initialData.id);
 
-        if (!response.ok) throw new Error('Erro ao atualizar categoria');
+        if (error) throw error;
 
         toast({
           title: 'Categoria atualizada com sucesso!',
@@ -66,8 +71,9 @@ export function CategoryForm({ initialData, isEditing }: CategoryFormProps) {
         });
       } else {
         // Criar nova categoria
-        const categories = queryUserSchema('categories');
-        const { error } = await categories.insert(data);
+        const { error } = await supabase
+          .from(`${schema}.categories`)
+          .insert(data);
 
         if (error) throw error;
 

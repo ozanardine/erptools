@@ -12,8 +12,12 @@ export async function getUserSchema() {
   return `client_${session.user.id.replace(/-/g, '_')}`;
 }
 
+export function getSupabaseClient() {
+  return createClient<Database>(supabaseUrl, supabaseAnonKey);
+}
+
 export async function queryUserSchema(table: string) {
-  const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
   const schema = await getUserSchema();
-  return supabase.from(`${schema}_${table}`);
+  const supabase = getSupabaseClient();
+  return supabase.from(`${schema}.${table}`);
 }

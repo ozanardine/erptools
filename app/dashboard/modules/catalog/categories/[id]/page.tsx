@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import { queryUserSchema } from '@/lib/schema-helper';
+import { getSupabaseClient } from '@/lib/schema-helper';
 import { CategoryForm } from '../../components/category-form';
 
 export const metadata = {
@@ -13,8 +13,15 @@ export default async function EditCategoryPage({
   params: { id: string };
 }) {
   try {
+    const supabase = getSupabaseClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) redirect('/auth/login');
+
+    const schema = `client_${session.user.id.replace(/-/g, '_')}`;
+
     // Buscar categoria
-    const { data: category } = await queryUserSchema('categories')
+    const { data: category } = await supabase
+      .from(`${schema}.categories`)
       .select('*')
       .eq('id', params.id)
       .single();
